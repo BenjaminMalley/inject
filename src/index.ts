@@ -85,17 +85,6 @@ export function hasNoDependencies(provider: Provider): boolean {
     return provider.parameterTypes.length === 0
 }
 
-export function getEdges(providers: Provider[]): Link[] {
-    return providers.flatMap(provider => {
-        return provider.parameterTypes.map(parameterType => {
-            return {
-                from: parameterType,
-                to: provider,
-            }
-        })
-    })
-}
-
 export function topoSort(providers: Provider[]): Provider[] | ErrorEvent {
     const s = providers.filter(hasNoDependencies)
     const l = []
