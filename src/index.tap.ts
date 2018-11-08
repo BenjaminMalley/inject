@@ -1,5 +1,10 @@
 import * as ts from "typescript"
-import ProgramLoader, { topoSort, ErrorEvent, Provider } from "./index"
+import ProgramLoader, {
+    topoSort,
+    ErrorEvent,
+    Provider,
+    ProviderNode,
+} from "./index"
 import * as test from "tape"
 import * as path from "path"
 
@@ -45,9 +50,9 @@ test("topoSort should return a topological sort of the provider graph", assert =
             parameterTypes: ["bar"],
             returnType: "baz",
         },
-    ]
+    ].map(provider => new ProviderNode(provider))
 
-    const result = topoSort(providers) as Provider[]
+    const result = topoSort(providers) as ProviderNode[]
     assert.equal(result[0].name, "foo")
     assert.equal(result[1].name, "bar")
     assert.equal(result[2].name, "baz")
@@ -69,7 +74,7 @@ test("topoSort returns an error when there are no providers without dependencies
             parameterTypes: ["foo"],
             returnType: "bar",
         },
-    ]
+    ].map(provider => new ProviderNode(provider))
     const result = topoSort(providers)
     assert.true((<ErrorEvent>result).message !== undefined)
     assert.end()
@@ -95,7 +100,7 @@ test("topoSort returns an error when there is a cycle", assert => {
             parameterTypes: ["bar", "foo"],
             returnType: "baz",
         },
-    ]
+    ].map(provider => new ProviderNode(provider))
     const result = topoSort(providers)
     assert.true((<ErrorEvent>result).message !== undefined)
     assert.end()

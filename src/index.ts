@@ -1,10 +1,50 @@
 import * as ts from "typescript"
 
-export interface Provider {
+export class Provider {
     name: string
     type: string
     parameterTypes: string[]
     returnType: string
+}
+
+export interface Node<A> {
+    hasNoIncomingEdges(): boolean
+    hasIncomingEdgeOn(incoming: Node<A>): boolean
+    removeIncomingEdgeOn(incoming: Node<A>)
+    getValue(): A
+}
+
+export class ProviderNode implements Provider, Node<string> {
+    name: string
+    type: string
+    parameterTypes: string[]
+    returnType: string
+
+    constructor(provider: Provider) {
+        this.name = provider.name
+        this.type = provider.type
+        this.parameterTypes = provider.parameterTypes
+        this.returnType = provider.returnType
+    }
+
+    hasNoIncomingEdges() {
+        return this.parameterTypes.length === 0
+    }
+
+    hasIncomingEdgeOn(incoming: Node<string>): boolean {
+        return this.parameterTypes.includes(incoming.getValue())
+    }
+
+    removeIncomingEdgeOn(incoming: Node<string>) {
+        this.parameterTypes.splice(
+            this.parameterTypes.indexOf(incoming.getValue()),
+            1
+        )
+    }
+
+    getValue(): string {
+        return this.returnType
+    }
 }
 
 export interface Link {
@@ -81,12 +121,8 @@ export default class ProgramLoader {
     }
 }
 
-export function hasNoDependencies(provider: Provider): boolean {
-    return provider.parameterTypes.length === 0
-}
-
-export function topoSort(providers: Provider[]): Provider[] | ErrorEvent {
-    const s = providers.filter(hasNoDependencies)
+export function topoSort<A, B extends Node<A>>(nodes: B[]): B[] | ErrorEvent {
+    const s = nodes.filter(node => node.hasNoIncomingEdges())
     const l = []
     if (s.length === 0) {
         return {
@@ -96,21 +132,14 @@ export function topoSort(providers: Provider[]): Provider[] | ErrorEvent {
     while (s.length > 0) {
         const n = s.pop()
         l.push(n)
-        providers
-            .filter(m => m.parameterTypes.includes(n.returnType))
-            .forEach(m => {
-                m.parameterTypes.splice(
-                    m.parameterTypes.indexOf(n.returnType),
-                    1
-                )
-                if (hasNoDependencies(m)) {
-                    s.push(m)
-                }
-            })
+        nodes.filter(m => m.hasIncomingEdgeOn(n)).forEach(m => {
+            m.removeIncomingEdgeOn(n)
+            if (m.hasNoIncomingEdges()) {
+                s.push(m)
+            }
+        })
     }
-    const hasEdges = providers.some(
-        provider => provider.parameterTypes.length > 0
-    )
+    const hasEdges = nodes.some(provider => !provider.hasNoIncomingEdges())
     if (hasEdges) {
         return {
             message: "Cycle identified",
