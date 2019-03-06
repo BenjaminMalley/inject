@@ -10,7 +10,7 @@ export class Provider {
 export interface Node<A> {
     hasNoIncomingEdges(): boolean
     hasIncomingEdgeOn(incoming: Node<A>): boolean
-    removeIncomingEdgeOn(incoming: Node<A>)
+    removeIncomingEdgeOn(incoming: Node<A>): null
     getValue(): A
 }
 
@@ -35,11 +35,12 @@ export class ProviderNode implements Provider, Node<string> {
         return this.parameterTypes.includes(incoming.getValue())
     }
 
-    removeIncomingEdgeOn(incoming: Node<string>) {
+    removeIncomingEdgeOn(incoming: Node<string>): null {
         this.parameterTypes.splice(
             this.parameterTypes.indexOf(incoming.getValue()),
             1
         )
+        return null;
     }
 
     getValue(): string {

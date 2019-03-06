@@ -24,6 +24,14 @@ test("ProgramLoader#getProviders should return all of the providers from a valid
     assert.end()
 })
 
+test("ProgramLoader should work on a program where providers have runtime dependencies", assert => {
+    const program = buildProgram("runtime-dependency.ts")
+    const loader = new ProgramLoader(program)
+    const providers = loader.getProviders()
+    assert.equal(providers.length, 1)
+    assert.end()
+})
+
 test("topoSort should return a topological sort of the provider graph", assert => {
     const providers = [
         {
@@ -105,3 +113,25 @@ test("topoSort returns an error when there is a cycle", assert => {
     assert.true((<ErrorEvent>result).message !== undefined)
     assert.end()
 })
+
+
+test("topoSort should handle providers with runtime dependencies", assert => {
+    const providers = [
+        {
+            name: "foo",
+            type: "foo",
+            // baz is a runtime dependency
+            parameterTypes: ["baz"],
+            returnType: "foo",
+        },
+        {
+            name: "bar",
+            type: "bar",
+            parameterTypes: ["foo"],
+            returnType: "bar",
+        },
+    ].map(provider => new ProviderNode(provider))
+    const result = topoSort(providers)
+    assert.true((<ErrorEvent>result).message !== undefined)
+    assert.end()
+});
