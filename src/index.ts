@@ -53,10 +53,6 @@ export interface Link {
     to: Provider
 }
 
-export interface ErrorEvent {
-    message: string
-}
-
 export default class ProgramLoader {
     checker: ts.TypeChecker
     program: ts.Program
@@ -127,22 +123,22 @@ class DependencyProvider<A, B extends Node<A>> {
 
     static buildWithNodes<C, D extends Node<C>>(
         nodes: D[]
-    ): DependencyProvider<C, D> | ErrorEvent {
-        //TODO: handle errors
-        const result = topoSort(nodes) as D[]
+    ): DependencyProvider<C, D> | Error {
+        const result = topoSort(nodes)
+        if (result instanceof Error) {
+            return result
+        }
         const depProvider = new DependencyProvider<C, D>()
         depProvider.nodes = result
         return depProvider
     }
 }
 
-export function topoSort<A, B extends Node<A>>(nodes: B[]): B[] | ErrorEvent {
+export function topoSort<A, B extends Node<A>>(nodes: B[]): B[] | Error {
     const s = nodes.filter(node => node.hasNoIncomingEdges())
     const l = []
     if (s.length === 0) {
-        return {
-            message: "Could not find start nodes",
-        }
+        return new Error("Could not find start nodes")
     }
     while (s.length > 0) {
         const n = s.pop()
@@ -156,9 +152,7 @@ export function topoSort<A, B extends Node<A>>(nodes: B[]): B[] | ErrorEvent {
     }
     const hasEdges = nodes.some(provider => !provider.hasNoIncomingEdges())
     if (hasEdges) {
-        return {
-            message: "Cycle identified",
-        }
+        return new Error("Cycle identified")
     }
     return l
 }

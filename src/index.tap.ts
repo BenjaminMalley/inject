@@ -1,10 +1,5 @@
 import * as ts from "typescript"
-import ProgramLoader, {
-    topoSort,
-    ErrorEvent,
-    Provider,
-    ProviderNode,
-} from "./index"
+import ProgramLoader, { topoSort, Provider, ProviderNode } from "./index"
 import * as test from "tape"
 import * as path from "path"
 
@@ -84,7 +79,7 @@ test("topoSort returns an error when there are no providers without dependencies
         },
     ].map(provider => new ProviderNode(provider))
     const result = topoSort(providers)
-    assert.true((<ErrorEvent>result).message !== undefined)
+    assert.true((<Error>result).message !== undefined)
     assert.end()
 })
 
@@ -110,10 +105,9 @@ test("topoSort returns an error when there is a cycle", assert => {
         },
     ].map(provider => new ProviderNode(provider))
     const result = topoSort(providers)
-    assert.true((<ErrorEvent>result).message !== undefined)
+    assert.true((<Error>result).message !== undefined)
     assert.end()
 })
-
 
 test("topoSort should handle providers with runtime dependencies", assert => {
     const providers = [
@@ -132,6 +126,6 @@ test("topoSort should handle providers with runtime dependencies", assert => {
         },
     ].map(provider => new ProviderNode(provider))
     const result = topoSort(providers)
-    assert.true((<ErrorEvent>result).message !== undefined)
+    assert.true((<Error>result).message !== undefined)
     assert.end()
-});
+})
