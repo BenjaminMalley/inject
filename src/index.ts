@@ -40,7 +40,7 @@ export class ProviderNode implements Provider, Node<string> {
             this.parameterTypes.indexOf(incoming.getValue()),
             1
         )
-        return null;
+        return null
     }
 
     getValue(): string {
@@ -119,6 +119,20 @@ export default class ProgramLoader {
             }
         })
         return this.providers
+    }
+}
+
+class DependencyProvider<A, B extends Node<A>> {
+    nodes: B[]
+
+    static buildWithNodes<C, D extends Node<C>>(
+        nodes: D[]
+    ): DependencyProvider<C, D> | ErrorEvent {
+        //TODO: handle errors
+        const result = topoSort(nodes) as D[]
+        const depProvider = new DependencyProvider<C, D>()
+        depProvider.nodes = result
+        return depProvider
     }
 }
 
