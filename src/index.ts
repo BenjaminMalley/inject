@@ -28,6 +28,7 @@ export class ProviderNode implements Provider, Node<string> {
     }
 
     hasNoIncomingEdges() {
+        // TODO this should handle runtime dependencies
         return this.parameterTypes.length === 0
     }
 
@@ -116,19 +117,23 @@ export default class ProgramLoader {
         })
         return this.providers
     }
+
+    buildDependencyProvider(): DependencyProvider | Error {
+        return DependencyProvider.buildWithNodes(
+            this.getProviders().map(provider => new ProviderNode(provider))
+        )
+    }
 }
 
-class DependencyProvider<A, B extends Node<A>> {
-    nodes: B[]
+class DependencyProvider {
+    nodes: ProviderNode[]
 
-    static buildWithNodes<C, D extends Node<C>>(
-        nodes: D[]
-    ): DependencyProvider<C, D> | Error {
+    static buildWithNodes(nodes: ProviderNode[]): DependencyProvider | Error {
         const result = topoSort(nodes)
         if (result instanceof Error) {
             return result
         }
-        const depProvider = new DependencyProvider<C, D>()
+        const depProvider = new DependencyProvider()
         depProvider.nodes = result
         return depProvider
     }
