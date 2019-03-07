@@ -3,7 +3,7 @@ import ProgramLoader, {
     topoSort,
     Provider,
     ProviderNode,
-    DependencyProvider,
+    DependencyGraph,
 } from "./index"
 import * as test from "tape"
 import * as path from "path"
@@ -41,7 +41,7 @@ interface TestNode {
 
 function buildProviderNode(testNode: TestNode): ProviderNode {
     const providerNode = new ProviderNode(testNode)
-    providerNode.staticDependencyTypes = providerNode.parameterTypes
+    providerNode.providedDependencyTypes = providerNode.parameterTypes
     return providerNode
 }
 
@@ -143,14 +143,14 @@ test("DependencyProvider#categorizeDependenciesByType should place dependencies 
             returnType: "bar",
         },
     ].map(provider => new ProviderNode(provider))
-    DependencyProvider.categorizeDependenciesByType(providers)
+    DependencyGraph.categorizeDependenciesByType(providers)
     const foo = providers.find(provider => provider.name === "foo")
     assert.equal(foo.runtimeDependencyTypes.length, 1)
     assert.equal(foo.runtimeDependencyTypes[0], "baz")
-    assert.equal(foo.staticDependencyTypes.length, 0)
+    assert.equal(foo.providedDependencyTypes.length, 0)
     const bar = providers.find(provider => provider.name === "bar")
-    assert.equal(bar.staticDependencyTypes.length, 1)
-    assert.equal(bar.staticDependencyTypes[0], "foo")
+    assert.equal(bar.providedDependencyTypes.length, 1)
+    assert.equal(bar.providedDependencyTypes[0], "foo")
     assert.equal(bar.runtimeDependencyTypes.length, 0)
     assert.end()
 })

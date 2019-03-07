@@ -1,7 +1,7 @@
 import * as ts from "typescript"
-import { stringify } from "querystring"
 
 export class Provider {
+    astNode?: ts.Node
     name: string
     type: string
     parameterTypes: string[]
@@ -16,12 +16,13 @@ export interface Node<A> {
 }
 
 export class ProviderNode implements Provider, Node<string> {
+    astNode: ts.Node
     name: string
     type: string
     parameterTypes: string[] = []
     returnType: string
     runtimeDependencyTypes: string[] = []
-    staticDependencyTypes: string[] = []
+    providedDependencyTypes: string[] = []
 
     constructor(provider: Provider) {
         this.name = provider.name
@@ -31,17 +32,16 @@ export class ProviderNode implements Provider, Node<string> {
     }
 
     hasNoIncomingEdges() {
-        // TODO this should handle runtime dependencies
-        return this.staticDependencyTypes.length === 0
+        return this.providedDependencyTypes.length === 0
     }
 
     hasIncomingEdgeOn(incoming: Node<string>): boolean {
-        return this.staticDependencyTypes.includes(incoming.getValue())
+        return this.providedDependencyTypes.includes(incoming.getValue())
     }
 
     removeIncomingEdgeOn(incoming: Node<string>): null {
-        this.staticDependencyTypes.splice(
-            this.staticDependencyTypes.indexOf(incoming.getValue()),
+        this.providedDependencyTypes.splice(
+            this.providedDependencyTypes.indexOf(incoming.getValue()),
             1
         )
         return null
@@ -106,6 +106,7 @@ export default class ProgramLoader {
                     returnType: this.getFullyQualifiedTypeNameFromType(
                         signature.getReturnType()
                     ),
+                    astNode: node,
                 })
             }
         }
@@ -121,23 +122,23 @@ export default class ProgramLoader {
         return this.providers
     }
 
-    buildDependencyProvider(): DependencyProvider | Error {
-        return DependencyProvider.buildWithNodes(
+    buildDependencyProvider(): DependencyGraph | Error {
+        return DependencyGraph.buildWithNodes(
             this.getProviders().map(provider => new ProviderNode(provider))
         )
     }
 }
 
-export class DependencyProvider {
+export class DependencyGraph {
     nodes: ProviderNode[]
 
-    static buildWithNodes(nodes: ProviderNode[]): DependencyProvider | Error {
-        DependencyProvider.categorizeDependenciesByType(nodes)
+    static buildWithNodes(nodes: ProviderNode[]): DependencyGraph | Error {
+        DependencyGraph.categorizeDependenciesByType(nodes)
         const result = topoSort(nodes)
         if (result instanceof Error) {
             return result
         }
-        const depProvider = new DependencyProvider()
+        const depProvider = new DependencyGraph()
         depProvider.nodes = result
         return depProvider
     }
@@ -151,7 +152,7 @@ export class DependencyProvider {
         nodes.forEach(provider => {
             provider.parameterTypes.forEach(dependency => {
                 if (providerTypes.has(dependency)) {
-                    provider.staticDependencyTypes.push(dependency)
+                    provider.providedDependencyTypes.push(dependency)
                 } else {
                     provider.runtimeDependencyTypes.push(dependency)
                 }
