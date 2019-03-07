@@ -1,4 +1,5 @@
 import * as ts from "typescript"
+import { stringify } from "querystring"
 
 export class Provider {
     name: string
@@ -17,8 +18,10 @@ export interface Node<A> {
 export class ProviderNode implements Provider, Node<string> {
     name: string
     type: string
-    parameterTypes: string[]
+    parameterTypes: string[] = []
     returnType: string
+    runtimeDependencyTypes: string[] = []
+    staticDependencyTypes: string[] = []
 
     constructor(provider: Provider) {
         this.name = provider.name
@@ -29,16 +32,16 @@ export class ProviderNode implements Provider, Node<string> {
 
     hasNoIncomingEdges() {
         // TODO this should handle runtime dependencies
-        return this.parameterTypes.length === 0
+        return this.staticDependencyTypes.length === 0
     }
 
     hasIncomingEdgeOn(incoming: Node<string>): boolean {
-        return this.parameterTypes.includes(incoming.getValue())
+        return this.staticDependencyTypes.includes(incoming.getValue())
     }
 
     removeIncomingEdgeOn(incoming: Node<string>): null {
-        this.parameterTypes.splice(
-            this.parameterTypes.indexOf(incoming.getValue()),
+        this.staticDependencyTypes.splice(
+            this.staticDependencyTypes.indexOf(incoming.getValue()),
             1
         )
         return null
@@ -125,10 +128,11 @@ export default class ProgramLoader {
     }
 }
 
-class DependencyProvider {
+export class DependencyProvider {
     nodes: ProviderNode[]
 
     static buildWithNodes(nodes: ProviderNode[]): DependencyProvider | Error {
+        DependencyProvider.categorizeDependenciesByType(nodes)
         const result = topoSort(nodes)
         if (result instanceof Error) {
             return result
@@ -136,6 +140,23 @@ class DependencyProvider {
         const depProvider = new DependencyProvider()
         depProvider.nodes = result
         return depProvider
+    }
+
+    public static categorizeDependenciesByType(nodes: ProviderNode[]) {
+        const providerTypes = nodes.reduce((types, provider) => {
+            types.add(provider.getValue())
+            return types
+        }, new Set<string>())
+
+        nodes.forEach(provider => {
+            provider.parameterTypes.forEach(dependency => {
+                if (providerTypes.has(dependency)) {
+                    provider.staticDependencyTypes.push(dependency)
+                } else {
+                    provider.runtimeDependencyTypes.push(dependency)
+                }
+            })
+        })
     }
 }
 

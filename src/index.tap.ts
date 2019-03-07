@@ -1,5 +1,10 @@
 import * as ts from "typescript"
-import ProgramLoader, { topoSort, Provider, ProviderNode } from "./index"
+import ProgramLoader, {
+    topoSort,
+    Provider,
+    ProviderNode,
+    DependencyProvider,
+} from "./index"
 import * as test from "tape"
 import * as path from "path"
 
@@ -27,6 +32,19 @@ test("ProgramLoader should work on a program where providers have runtime depend
     assert.end()
 })
 
+interface TestNode {
+    name: string
+    type: string
+    parameterTypes: string[]
+    returnType: string
+}
+
+function buildProviderNode(testNode: TestNode): ProviderNode {
+    const providerNode = new ProviderNode(testNode)
+    providerNode.staticDependencyTypes = providerNode.parameterTypes
+    return providerNode
+}
+
 test("topoSort should return a topological sort of the provider graph", assert => {
     const providers = [
         {
@@ -53,7 +71,7 @@ test("topoSort should return a topological sort of the provider graph", assert =
             parameterTypes: ["bar"],
             returnType: "baz",
         },
-    ].map(provider => new ProviderNode(provider))
+    ].map(buildProviderNode)
 
     const result = topoSort(providers) as ProviderNode[]
     assert.equal(result[0].name, "foo")
@@ -77,7 +95,7 @@ test("topoSort returns an error when there are no providers without dependencies
             parameterTypes: ["foo"],
             returnType: "bar",
         },
-    ].map(provider => new ProviderNode(provider))
+    ].map(buildProviderNode)
     const result = topoSort(providers)
     assert.true((<Error>result).message !== undefined)
     assert.end()
@@ -103,13 +121,13 @@ test("topoSort returns an error when there is a cycle", assert => {
             parameterTypes: ["bar", "foo"],
             returnType: "baz",
         },
-    ].map(provider => new ProviderNode(provider))
+    ].map(buildProviderNode)
     const result = topoSort(providers)
     assert.true((<Error>result).message !== undefined)
     assert.end()
 })
 
-test("topoSort should handle providers with runtime dependencies", assert => {
+test("DependencyProvider#categorizeDependenciesByType should place dependencies into the correct category", assert => {
     const providers = [
         {
             name: "foo",
@@ -125,7 +143,14 @@ test("topoSort should handle providers with runtime dependencies", assert => {
             returnType: "bar",
         },
     ].map(provider => new ProviderNode(provider))
-    const result = topoSort(providers)
-    assert.true((<Error>result).message !== undefined)
+    DependencyProvider.categorizeDependenciesByType(providers)
+    const foo = providers.find(provider => provider.name === "foo")
+    assert.equal(foo.runtimeDependencyTypes.length, 1)
+    assert.equal(foo.runtimeDependencyTypes[0], "baz")
+    assert.equal(foo.staticDependencyTypes.length, 0)
+    const bar = providers.find(provider => provider.name === "bar")
+    assert.equal(bar.staticDependencyTypes.length, 1)
+    assert.equal(bar.staticDependencyTypes[0], "foo")
+    assert.equal(bar.runtimeDependencyTypes.length, 0)
     assert.end()
 })
