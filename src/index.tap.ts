@@ -1,12 +1,12 @@
+import * as path from "path"
+import * as test from "tape"
 import * as ts from "typescript"
 import ProgramLoader, {
-    topoSort,
-    Provider,
-    ProviderNode,
     DependencyGraph,
+    ProgramLoaderWithClassBasedProviders,
+    ProviderNode,
+    topoSort,
 } from "./index"
-import * as test from "tape"
-import * as path from "path"
 
 function buildProgram(fixtureName: string): ts.Program {
     const fixturePath = path.join(__dirname, "..", "fixtures", fixtureName)
@@ -152,5 +152,19 @@ test("DependencyProvider#categorizeDependenciesByType should place dependencies 
     assert.equal(bar.providedDependencyTypes.length, 1)
     assert.equal(bar.providedDependencyTypes[0], "foo")
     assert.equal(bar.runtimeDependencyTypes.length, 0)
+    assert.end()
+})
+
+test("Builders", assert => {
+    const program = buildProgram("builder-example.ts")
+    const loader = new ProgramLoader(program)
+    loader.getProviders()
+    assert.end()
+})
+
+test("ProgramLoaderWithInterfaceProviders", assert => {
+    const program = buildProgram("providers-as-classes.ts")
+    const loader = new ProgramLoaderWithClassBasedProviders(program)
+    loader.getProviders()
     assert.end()
 })

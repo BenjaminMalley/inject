@@ -57,6 +57,11 @@ export interface Link {
     to: Provider
 }
 
+interface InternalProviderNode extends ts.FunctionDeclaration {
+    symbol: ts.Symbol
+    symbolName: string
+}
+
 export default class ProgramLoader {
     checker: ts.TypeChecker
     program: ts.Program
@@ -65,6 +70,7 @@ export default class ProgramLoader {
     providerFunctionNamePrefix = "provide"
 
     constructor(program: ts.Program) {
+        this.visit = this.visit.bind(this)
         this.program = program
         this.checker = program.getTypeChecker()
         this.providers = []
@@ -85,38 +91,81 @@ export default class ProgramLoader {
         return this.checker.getFullyQualifiedName(type.getSymbol())
     }
 
-    visit(node: ts.Node) {
-        const { kind } = node
+    // TODO return a custom representation so that multiple strategies can deal with the same result
+    isProviderNode(node: ts.Node): node is ts.FunctionDeclaration {
         if (ts.isFunctionDeclaration(node) && node.name) {
             const symbol = this.checker.getSymbolAtLocation(node.name)
             const name = symbol.getName()
-            if (name.startsWith(this.providerFunctionNamePrefix)) {
-                const type = this.checker.getTypeOfSymbolAtLocation(
-                    symbol,
-                    symbol.valueDeclaration
-                )
-                const signatures = type.getCallSignatures()
-                const signature = signatures[0]
-                this.providers.push({
-                    name,
-                    type: this.checker.typeToString(type),
-                    parameterTypes: signature.parameters.map(param =>
-                        this.getFullyQualifiedTypeNameFromSymbol(param)
-                    ),
-                    returnType: this.getFullyQualifiedTypeNameFromType(
-                        signature.getReturnType()
-                    ),
-                    astNode: node,
-                })
-            }
+            return name.startsWith("provide")
         }
-        ts.forEachChild(node, child => this.visit(child))
+        return false
+    }
+
+    heritageClausesMatchType(
+        clauses: ts.NodeArray<ts.HeritageClause>,
+        typeToMatch: string
+    ): boolean {
+        return clauses.some(
+            (clause: ts.HeritageClause): boolean => {
+                if (
+                    clause.token === ts.SyntaxKind.ExtendsKeyword &&
+                    clause.types.length === 1
+                ) {
+                    const type = clause.types[0]
+                    const t = this.checker.getTypeAtLocation(type.expression)
+                    // TODO how to make this check more robust?
+                    return this.checker.typeToString(t) === typeToMatch
+                }
+            }
+        )
+    }
+
+    isBuilderNode(node: ts.Node): boolean {
+        if (ts.isInterfaceDeclaration(node)) {
+            const {
+                heritageClauses = ts.createNodeArray(),
+            }: {
+                heritageClauses?: ts.NodeArray<ts.HeritageClause>
+            } = node as ts.InterfaceDeclaration
+            return this.heritageClausesMatchType(heritageClauses, "Builder")
+        }
+        return false
+    }
+
+    visit(node: ts.Node) {
+        const { kind } = node
+        if (this.isProviderNode(node)) {
+            // TODO handle redundant symbol & name definition with isProviderNode
+            const symbol = this.checker.getSymbolAtLocation(node.name)
+            const name = symbol.getName()
+            const type = this.checker.getTypeOfSymbolAtLocation(
+                symbol,
+                symbol.valueDeclaration
+            )
+            const signatures = type.getCallSignatures()
+            const signature = signatures[0]
+            this.providers.push({
+                name,
+                type: this.checker.typeToString(type),
+                parameterTypes: signature.parameters.map(param =>
+                    this.getFullyQualifiedTypeNameFromSymbol(param)
+                ),
+                returnType: this.getFullyQualifiedTypeNameFromType(
+                    signature.getReturnType()
+                ),
+                astNode: node,
+            })
+        }
+
+        if (this.isBuilderNode(node)) {
+        }
+        ts.forEachChild(node, this.visit)
     }
 
     getProviders(): Provider[] {
         this.program.getSourceFiles().forEach(sourceFile => {
             if (!sourceFile.isDeclarationFile) {
-                ts.forEachChild(sourceFile, child => this.visit(child))
+                ts.forEachChild(sourceFile, this.visit)
             }
         })
         return this.providers
@@ -126,6 +175,20 @@ export default class ProgramLoader {
         return DependencyGraph.buildWithNodes(
             this.getProviders().map(provider => new ProviderNode(provider))
         )
+    }
+}
+
+export class ProgramLoaderWithClassBasedProviders extends ProgramLoader {
+    isProviderNode(node: ts.Node): node is ts.FunctionDeclaration {
+        if (ts.isClassDeclaration(node)) {
+            const {
+                heritageClauses = ts.createNodeArray(),
+            }: {
+                heritageClauses?: ts.NodeArray<ts.HeritageClause>
+            } = node
+            return this.heritageClausesMatchType(heritageClauses, "Provider")
+        }
+        return false
     }
 }
 
