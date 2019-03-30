@@ -1,20 +1,20 @@
 {
-  "name": "inject",
-  "version": "1.0.0",
-  "description": "Build time dependency injection for TypeScript",
-  "main": "dist/index.js",
-  "scripts": {
-    "test": "tsc && tape 'dist/**/*.tap.js'",
-    "build": "tsc"
-  },
-  "author": "Benjamin Malley",
-  "license": "ISC",
-  "dependencies": {
-    "@types/node": "^10.12.0",
-    "typescript": "^3.1.1"
-  },
-  "devDependencies": {
-    "prettier": "1.14.3",
-    "tape": "^4.2.32"
-  }
+    "name": "inject",
+    "version": "1.0.0",
+    "description": "Build time dependency injection for TypeScript",
+    "main": "dist/index.js",
+    "scripts": {
+        "test": "tsc && tape 'dist/**/*.tap.js'",
+        "build": "tsc"
+    },
+    "author": "Benjamin Malley",
+    "license": "ISC",
+    "dependencies": {
+        "@types/node": "^10.12.0",
+        "typescript": "^3.4.1"
+    },
+    "devDependencies": {
+        "prettier": "1.14.3",
+        "tape": "^4.2.32"
+    }
 }
