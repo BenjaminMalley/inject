@@ -1,12 +1,10 @@
 import * as path from "path"
 import * as test from "tape"
 import * as ts from "typescript"
-import ProgramLoader, {
-    DependencyGraph,
-    ProgramLoaderWithClassBasedProviders,
-    ProviderNode,
-    topoSort,
-} from "./index"
+import DependencyGraphBuilder from "./dependency-graph-builder"
+import { TSProgramAnalyzer } from "./program-analyzer"
+import { TSProgram } from "./program"
+import { Provider, ProviderNode, Logger } from "./model"
 
 function buildProgram(fixtureName: string): ts.Program {
     const fixturePath = path.join(__dirname, "..", "fixtures", fixtureName)
@@ -16,22 +14,31 @@ function buildProgram(fixtureName: string): ts.Program {
     })
 }
 
-test("ProgramLoader#getProviders should return all of the providers from a valid ts program", assert => {
-    const program = buildProgram("foo.ts")
-    const loader = new ProgramLoader(program)
-    const providers = loader.getProviders()
-    assert.equal(providers.length, 5)
+class NullLogger implements Logger {
+    warn(...data: any): void {}
+    info(...data: any): void {}
+    debug(...data: any): void {
+        console.log(...data)
+    }
+    error(...data: any): void {}
+}
+
+test(
+    "A program which extends the Provider class should be able to return providers"
+)
+
+test("DependencyGraph should convert a valid program into a DependencyGraph", assert => {
+    const program = buildProgram("provider-example.ts")
+    const checker = program.getTypeChecker()
+    const builder = new DependencyGraphBuilder()
+        .setProgram(new TSProgram(program))
+        .setAnalyzer(new TSProgramAnalyzer(checker))
+    //assert.false(builder.buildDependencyGraph() instanceof Error)
+    assert.equal(builder.build(), new Error(""))
     assert.end()
 })
 
-test("ProgramLoader should work on a program where providers have runtime dependencies", assert => {
-    const program = buildProgram("runtime-dependency.ts")
-    const loader = new ProgramLoader(program)
-    const providers = loader.getProviders()
-    assert.equal(providers.length, 1)
-    assert.end()
-})
-
+/*
 interface TestNode {
     name: string
     type: string
@@ -161,10 +168,4 @@ test("Builders", assert => {
     loader.getProviders()
     assert.end()
 })
-
-test("ProgramLoaderWithInterfaceProviders", assert => {
-    const program = buildProgram("providers-as-classes.ts")
-    const loader = new ProgramLoaderWithClassBasedProviders(program)
-    loader.getProviders()
-    assert.end()
-})
+*/
